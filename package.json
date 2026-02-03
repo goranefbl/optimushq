@@ -1,6 +1,6 @@
 {
   "name": "@goranefbl/optimushq",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A self-hosted, multi-tenant platform for running multiple Claude Code agents across projects",
   "bin": {
     "optimushq": "./bin/cli.js"
