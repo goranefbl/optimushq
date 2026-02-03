@@ -1,12 +1,40 @@
 import { Router, Request, Response } from 'express';
 import QRCode from 'qrcode';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
 import { getDb } from '../db/connection.js';
+import { decryptEnv } from './mcps.js';
 
 const router = Router();
 
 // Dynamic import for WhatsApp service (heavy dependency)
 let whatsappService: any = null;
 let whatsappInitPromise: Promise<void> | null = null;
+
+// Generate MCP config from database (same logic as spawn.ts)
+function generateMcpConfig(): string {
+  const db = getDb();
+  const servers = db.prepare('SELECT name, command, args, env FROM mcp_servers WHERE enabled = 1').all() as {
+    name: string; command: string; args: string; env: string;
+  }[];
+
+  const mcpServers: Record<string, { command: string; args: string[]; env?: Record<string, string> }> = {};
+  for (const s of servers) {
+    const key = s.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const entry: { command: string; args: string[]; env?: Record<string, string> } = {
+      command: s.command,
+      args: JSON.parse(s.args),
+    };
+    const env = decryptEnv(s.env);
+    if (Object.keys(env).length > 0) entry.env = env;
+    mcpServers[key] = entry;
+  }
+
+  const configPath = path.join(os.tmpdir(), 'whatsapp-mcp-config.json');
+  fs.writeFileSync(configPath, JSON.stringify({ mcpServers }, null, 2), 'utf-8');
+  return configPath;
+}
 
 async function getWhatsAppService() {
   if (!whatsappService) {
@@ -24,6 +52,9 @@ async function getWhatsAppService() {
       const project = db.prepare('SELECT id FROM projects WHERE user_id = ? AND is_general = 1').get(user.id) as { id: string } | undefined;
       return project ? { userId: user.id, projectId: project.id } : null;
     });
+
+    // Set up MCP config generator (uses database)
+    whatsappService.setMcpConfigGenerator(generateMcpConfig);
   }
   return whatsappService;
 }

@@ -2,11 +2,15 @@ import pkg from 'whatsapp-web.js';
 const { Client, LocalAuth } = pkg;
 import { spawn } from 'child_process';
 import path from 'path';
+import fs from 'fs';
+import os from 'os';
 import { fileURLToPath } from 'url';
 import { EventEmitter } from 'events';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const MCP_CONFIG_PATH = path.join(__dirname, '..', 'mcp-config.json');
+
+// Generate MCP config path in temp directory (will be populated by caller)
+const MCP_CONFIG_PATH = path.join(os.tmpdir(), 'whatsapp-mcp-config.json');
 
 export interface WhatsAppStatus {
   connected: boolean;
@@ -20,9 +24,14 @@ class WhatsAppService extends EventEmitter {
   private qrCode: string | null = null;
   private initializing = false;
   private onUserLookup: ((phone: string) => Promise<{ userId: string; projectId: string } | null>) | null = null;
+  private onGetMcpConfig: (() => string) | null = null;
 
   setUserLookup(fn: (phone: string) => Promise<{ userId: string; projectId: string } | null>) {
     this.onUserLookup = fn;
+  }
+
+  setMcpConfigGenerator(fn: () => string) {
+    this.onGetMcpConfig = fn;
   }
 
   getStatus(): WhatsAppStatus {
@@ -153,12 +162,15 @@ Use plain text formatting, no markdown.
 User ID: ${userId}
 Phone: ${phone}`;
 
+    // Get MCP config path from generator (populated by server with DB access)
+    const mcpConfigPath = this.onGetMcpConfig ? this.onGetMcpConfig() : MCP_CONFIG_PATH;
+
     return new Promise((resolve, reject) => {
       const args = [
         '--print',
         '--model', 'sonnet',
         '--dangerously-skip-permissions',
-        '--mcp-config', MCP_CONFIG_PATH,
+        '--mcp-config', mcpConfigPath,
         '--system-prompt', systemPrompt,
         '--max-turns', '5',
         '--', question,
