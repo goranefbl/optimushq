@@ -43,7 +43,7 @@ export default function SetupBanner() {
             Set your base domain to enable project subdomain URLs.
           </span>
           <Link
-            to="/config"
+            to="/settings"
             className="inline-flex items-center gap-1 text-sm font-medium text-amber-300 hover:text-amber-200 transition-colors"
           >
             Go to Settings

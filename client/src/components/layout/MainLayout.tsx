@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useMobileSidebar, MobileSidebarOverlay } from './MobileSidebar';
 import { useMobile } from '../../hooks/useMobile';
 import { X } from 'lucide-react';
+import SetupBanner from './SetupBanner';
 
 interface Props {
   sidebar: React.ReactNode;
@@ -34,6 +35,7 @@ export default function MainLayout({ sidebar, header, children, rightPanel }: Pr
 
       <div className="flex-1 flex flex-col min-w-0">
         {header}
+        <SetupBanner />
         <div className="flex-1 flex overflow-hidden">
           <main className="flex-1 overflow-hidden">{children}</main>
           {/* Desktop right panel */}
