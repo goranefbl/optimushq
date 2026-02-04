@@ -221,6 +221,14 @@ npx @goranefbl/optimushq
 
 Opens at `http://localhost:3001`. Login with `admin` / `admin`.
 
+**Important: Do not run as root.** Claude CLI blocks `--dangerously-skip-permissions` for root users. Create a non-root user:
+
+```bash
+sudo useradd -m claude
+sudo su - claude
+npx @goranefbl/optimushq
+```
+
 To enable WhatsApp, go to Settings and scan the QR code with WhatsApp.
 
 ### Option 2: Clone and run
