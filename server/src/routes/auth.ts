@@ -49,13 +49,33 @@ router.get('/me', (req: Request, res: Response) => {
 
   const db = getDb();
   const row = db.prepare(`
-    SELECT u.id, u.email, u.username, u.role
+    SELECT u.id, u.email, u.username, u.role, u.phone
     FROM auth_tokens t JOIN users u ON t.user_id = u.id
     WHERE t.token = ?
-  `).get(token) as { id: string; email: string; username: string; role: string } | undefined;
+  `).get(token) as { id: string; email: string; username: string; role: string; phone: string | null } | undefined;
 
   if (!row) return res.status(401).json({ error: 'Not authenticated' });
-  res.json({ userId: row.id, username: row.username, email: row.email, role: row.role });
+  res.json({ userId: row.id, username: row.username, email: row.email, role: row.role, phone: row.phone });
+});
+
+router.put('/me', (req: Request, res: Response) => {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (!token) return res.status(401).json({ error: 'Not authenticated' });
+
+  const db = getDb();
+  const row = db.prepare('SELECT u.id FROM auth_tokens t JOIN users u ON t.user_id = u.id WHERE t.token = ?')
+    .get(token) as { id: string } | undefined;
+
+  if (!row) return res.status(401).json({ error: 'Not authenticated' });
+
+  const { phone } = req.body;
+  if (phone !== undefined) {
+    // Normalize phone: remove spaces, dashes, and leading +
+    const normalized = phone ? phone.replace(/[\s\-\+]/g, '') : null;
+    db.prepare('UPDATE users SET phone = ? WHERE id = ?').run(normalized, row.id);
+  }
+
+  res.json({ ok: true });
 });
 
 /** Inline auth helper for routes that run before the global authMiddleware */

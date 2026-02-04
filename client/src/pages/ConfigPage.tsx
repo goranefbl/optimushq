@@ -69,6 +69,11 @@ export default function ConfigPage() {
   const [modelSaved, setModelSaved] = useState(false);
   const { color: themeColor, setColor: setThemeColor, colorNames } = useTheme();
 
+  // Profile state
+  const [phone, setPhone] = useState('');
+  const [phoneSaving, setPhoneSaving] = useState(false);
+  const [phoneSaved, setPhoneSaved] = useState(false);
+
   // WhatsApp state (admin only)
   const [waStatus, setWaStatus] = useState<WhatsAppStatus | null>(null);
   const [waQrImage, setWaQrImage] = useState<string | null>(null);
@@ -101,6 +106,24 @@ export default function ConfigPage() {
   }, []);
 
   useEffect(() => { fetchSettings(); }, [fetchSettings]);
+
+  // Fetch profile (phone)
+  useEffect(() => {
+    api.get<{ phone: string | null }>('/auth/me').then(data => {
+      if (data.phone) setPhone(data.phone);
+    });
+  }, []);
+
+  const handleSavePhone = async () => {
+    setPhoneSaving(true);
+    try {
+      await api.put('/auth/me', { phone });
+      setPhoneSaved(true);
+      setTimeout(() => setPhoneSaved(false), 2000);
+    } finally {
+      setPhoneSaving(false);
+    }
+  };
 
   // WhatsApp functions (admin only)
   const fetchWhatsAppStatus = useCallback(async () => {
@@ -244,6 +267,37 @@ export default function ConfigPage() {
             <Settings size={22} className="text-accent-400" />
             <h1 className="text-xl font-bold text-white">Configuration</h1>
           </div>
+
+          {/* Profile */}
+          <section className="mb-10">
+            <div className="flex items-center gap-2 mb-4">
+              <Phone size={16} className="text-gray-400" />
+              <h2 className="text-base font-semibold text-white">Profile</h2>
+            </div>
+            <p className="text-sm text-gray-500 mb-4">
+              Set your phone number to receive WhatsApp messages from agents.
+            </p>
+            <div className="flex gap-3">
+              <input
+                type="text"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="Phone number (e.g., 38160123456)"
+                className="flex-1 bg-[#161b22] border border-gray-800/60 rounded-lg px-4 py-2.5 text-sm text-white placeholder-gray-600 focus:border-accent-600/50 focus:outline-none"
+              />
+              <button
+                onClick={handleSavePhone}
+                disabled={phoneSaving}
+                className="px-4 py-2.5 rounded-lg bg-accent-600 hover:bg-accent-500 text-white text-sm font-medium flex items-center gap-2 disabled:opacity-50"
+              >
+                {phoneSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                {phoneSaved ? 'Saved!' : 'Save'}
+              </button>
+            </div>
+            <p className="text-xs text-gray-600 mt-2">
+              Enter your phone number in international format without + (e.g., 38160123456 for Serbia).
+            </p>
+          </section>
 
           {/* Theme Color */}
           <section className="mb-10">
