@@ -125,11 +125,13 @@ Dedicated per-project field for dev server management:
 - Auto-detect git origin URL from existing repos
 
 ### Live Preview
-- **Subdomain proxy**: `https://<project-name>.yourdomain.com/` proxies to the project's dev port
+- **Subdomain proxy**: `https://<project-name>.<base-domain>/` proxies to the project's dev port
 - **Static preview**: `/preview/<project-name>/` serves files directly from the project folder
 - Preview URLs are shown in project settings and injected into agent context
+- Base domain is configurable in Settings > Platform (admin only)
 
 ### Settings
+- **Platform** (admin): Base domain for project subdomain URLs (e.g., `example.com` makes projects accessible at `<project>.example.com`)
 - Default model selection (Haiku, Sonnet, Opus)
 - Default permission mode
 - Tool allow/disallow lists (restrict which tools agents can use)
@@ -266,6 +268,7 @@ The app runs at `http://localhost:3001` with the built frontend served staticall
 | `PORT` | Server port | `3001` |
 | `AUTH_USER` | Login username | `admin` |
 | `AUTH_PASS` | Login password | `admin` |
+| `BASE_DOMAIN` | Fallback domain for project subdomains (can also be set in Settings) | `localhost` |
 
 ## Default Seed Data
 
