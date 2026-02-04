@@ -3,6 +3,7 @@ import makeWASocket, {
   useMultiFileAuthState,
   WASocket,
   proto,
+  makeCacheableSignalKeyStore,
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import { spawn } from 'child_process';
@@ -117,7 +118,30 @@ class WhatsAppService extends EventEmitter {
     const jid = msg.key?.remoteJid;
     if (!jid || jid.includes('@g.us')) return; // Ignore groups
 
-    const phone = jid.replace('@s.whatsapp.net', '');
+    // Handle both @s.whatsapp.net and @lid formats
+    let phone: string | null = null;
+
+    if (jid.endsWith('@s.whatsapp.net')) {
+      // Standard phone number format
+      phone = jid.replace('@s.whatsapp.net', '').split(':')[0];
+    } else if (jid.endsWith('@lid')) {
+      // LID format - try to get phone from verifiedBizName or pushName, or look up contact
+      // First check if we can get PN from the socket's store
+      try {
+        // Try to get phone number using socket's onWhatsApp query
+        const lid = jid.replace('@lid', '');
+        // For now, store and lookup by LID directly
+        phone = lid;
+        console.log(`[WhatsApp] LID message from ${lid}, looking up by LID`);
+      } catch (err) {
+        console.log(`[WhatsApp] Could not resolve LID to phone: ${err}`);
+      }
+    }
+
+    if (!phone) {
+      console.log(`[WhatsApp] Could not extract phone from jid: ${jid}`);
+      return;
+    }
     const text = msg.message?.conversation ||
                  msg.message?.extendedTextMessage?.text ||
                  '';
@@ -140,7 +164,7 @@ class WhatsAppService extends EventEmitter {
       }
 
       if (!userId) {
-        await this.sendMessage(jid, 'Your phone number is not registered. Please add your phone number in your OptimusHQ profile settings.');
+        await this.sendMessage(jid, `Your ID is not registered.\n\nYour WhatsApp ID: ${phone}\n\nGo to Settings > WhatsApp in OptimusHQ and enter this ID in the phone field, then save.`);
         return;
       }
 

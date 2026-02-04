@@ -33,11 +33,15 @@ function generateMcpConfig(): string {
   return configPath;
 }
 
-// Set up user lookup
-whatsappService.setUserLookup(async (phone: string) => {
+// Set up user lookup - supports both phone numbers and LIDs
+whatsappService.setUserLookup(async (identifier: string) => {
   const db = getDb();
-  const user = db.prepare('SELECT id FROM users WHERE phone = ?').get(phone) as { id: string } | undefined;
-  if (!user) return null;
+  // Look up by phone column (can contain either phone number or LID)
+  const user = db.prepare('SELECT id FROM users WHERE phone = ?').get(identifier) as { id: string } | undefined;
+  if (!user) {
+    console.log(`[WhatsApp] No user found for identifier: ${identifier}`);
+    return null;
+  }
 
   // Get user's general project
   const project = db.prepare('SELECT id FROM projects WHERE user_id = ? AND is_general = 1').get(user.id) as { id: string } | undefined;
