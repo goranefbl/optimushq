@@ -275,7 +275,7 @@ The app runs at `http://localhost:3001` with the built frontend served staticall
 On first run the server creates:
 
 - **5 agents**: Builder (default), Researcher, Debugger, Writer, DevOps
-- **3 skills**: Code Review, Concise Output, Testing
+- **4 skills**: Code Review, Concise Output, Testing, WordPress Plugin Dev
 - **2 MCP servers**: Chrome DevTools (user-visible), Project Manager (internal)
 - **1 project**: General (for unscoped chats)
 
@@ -303,7 +303,32 @@ Backups are stored in `/home/claude/backups/` (outside the repo for security).
 cloudflared tunnel --url http://localhost:3001
 ```
 
-For subdomain-based project previews, configure a wildcard DNS record pointing `*.yourdomain.com` to your server and set up a reverse proxy (Caddy, Nginx) to route `<project-name>.yourdomain.com` to the project's dev port.
+## Optional: Subdomain Proxy with Cloudflare
+
+To enable project subdomains (e.g., `myproject.yourdomain.com`), set up Cloudflare DNS:
+
+1. **Add a wildcard DNS record** in Cloudflare:
+   - Type: `A`
+   - Name: `*`
+   - Content: `<your-server-ip>`
+   - Proxy status: Proxied (orange cloud)
+
+2. **Add the root domain** (if not already):
+   - Type: `A`
+   - Name: `@`
+   - Content: `<your-server-ip>`
+   - Proxy status: Proxied
+
+3. **Set the base domain** in OptimusHQ:
+   - Go to Settings > Platform
+   - Enter your domain (e.g., `yourdomain.com`)
+   - Save
+
+4. **SSL/TLS settings** in Cloudflare:
+   - Go to SSL/TLS > Overview
+   - Set encryption mode to "Full" or "Full (strict)"
+
+Projects will now be accessible at `https://<project-name>.yourdomain.com/`, automatically proxied to each project's dev port.
 
 ## Optional: Chrome for DevTools MCP
 
