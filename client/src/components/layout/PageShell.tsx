@@ -2,6 +2,7 @@ import React from 'react';
 import { Menu } from 'lucide-react';
 import Sidebar from './Sidebar';
 import { useMobileSidebar, MobileSidebarOverlay } from './MobileSidebar';
+import SetupBanner from './SetupBanner';
 
 interface Props {
   children: React.ReactNode;
@@ -37,6 +38,8 @@ export default function PageShell({ children }: Props) {
             <Menu size={20} />
           </button>
         </div>
+        {/* Setup banner for admins */}
+        <SetupBanner />
         {children}
       </div>
     </div>
