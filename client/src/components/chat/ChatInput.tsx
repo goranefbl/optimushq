@@ -179,7 +179,6 @@ export default function ChatInput({ onSend, onStop, streaming, disabled, default
 
   const canSend = (input.trim() || images.length > 0) && !disabled && !uploading;
   const currentModel = MODELS.find(m => m.value === model) || MODELS[0];
-  const buttonLabel = thinking ? `${currentModel.label} (thinking)` : currentModel.label;
   const currentMode = MODES.find(m => m.value === mode) || MODES[0];
   const ModeIcon = currentMode.icon;
 
@@ -222,7 +221,7 @@ export default function ChatInput({ onSend, onStop, streaming, disabled, default
             onPaste={handlePaste}
             placeholder={disabled ? 'Select a session to start chatting...' : 'Message...'}
             disabled={disabled}
-            rows={3}
+            rows={2}
             className="w-full resize-none bg-transparent px-4 pt-3 pb-2 text-sm text-white placeholder-gray-600 focus:outline-none disabled:opacity-50"
           />
 
@@ -233,13 +232,15 @@ export default function ChatInput({ onSend, onStop, streaming, disabled, default
               <div className="relative" ref={modelMenuRef}>
                 <button
                   onClick={() => setShowModelMenu(!showModelMenu)}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                  className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
                     thinking
                       ? 'text-amber-400 hover:bg-amber-500/10'
                       : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/60'
                   }`}
                 >
-                  {buttonLabel}
+                  {thinking && <Sparkles size={12} className="flex-shrink-0" />}
+                  <span className="hidden sm:inline">{currentModel.label}</span>
+                  <span className="sm:hidden">{currentModel.label.charAt(0)}</span>
                   <ChevronDown size={12} />
                 </button>
                 {showModelMenu && (
@@ -297,7 +298,7 @@ export default function ChatInput({ onSend, onStop, streaming, disabled, default
               <div className="relative" ref={modeMenuRef}>
                 <button
                   onClick={() => setShowModeMenu(!showModeMenu)}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                  className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
                     mode === 'explore'
                       ? 'text-blue-400 hover:bg-blue-500/10'
                       : mode === 'ask'
@@ -306,8 +307,8 @@ export default function ChatInput({ onSend, onStop, streaming, disabled, default
                   }`}
                 >
                   <ModeIcon size={12} />
-                  {currentMode.label}
-                  <ChevronDown size={12} />
+                  <span className="hidden sm:inline">{currentMode.label}</span>
+                  <ChevronDown size={12} className="hidden sm:block" />
                 </button>
                 {showModeMenu && (
                   <div className="absolute bottom-full left-0 mb-1 bg-[#1c2129] border border-gray-700/60 rounded-lg shadow-xl z-50 min-w-[240px] py-1">
