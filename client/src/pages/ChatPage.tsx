@@ -72,7 +72,7 @@ export default function ChatPage() {
   const activeProjectId = selectedProjectId || generalProjectId || '';
   const { sessions, loading: sessionsLoading, create: createSession, remove: removeSession, refresh: refreshSessions } = useSessions(activeProjectId);
   const { agents } = useAgents();
-  const { messages, streaming, streamContent, toolActivities, error, lastCost, queuedMessages, queueTransition, messagesLoaded, send, stop } = useChat(selectedSessionId);
+  const { messages, streaming, streamContent, toolActivities, error, lastCost, queuedMessages, queueTransition, messagesLoaded, activeSkills, send, stop } = useChat(selectedSessionId);
   const { memory, refresh: refreshMemory } = useMemory(selectedSessionId);
   const isRealProject = selectedProjectId && selectedProjectId !== generalProjectId;
   const { memory: projectMemory, update: updateProjectMemory, refresh: refreshProjectMemory } = useProjectMemory(isRealProject ? selectedProjectId : null);
@@ -228,6 +228,7 @@ export default function ChatPage() {
           streaming={streaming}
           streamContent={streamContent}
           toolActivities={toolActivities}
+          activeSkills={activeSkills}
           error={error}
           lastCost={lastCost}
           queuedMessages={queuedMessages}

@@ -23,6 +23,7 @@ export function useChat(sessionId: string | null) {
   const [queuedMessages, setQueuedMessages] = useState<Message[]>([]);
   const [queueTransition, setQueueTransition] = useState(false);
   const [messagesLoaded, setMessagesLoaded] = useState(false);
+  const [activeSkills, setActiveSkills] = useState<string[]>([]);
   const streamRef = useRef('');
   const sessionRef = useRef(sessionId);
 
@@ -40,6 +41,7 @@ export function useChat(sessionId: string | null) {
       setQueuedMessages([]);
       setQueueTransition(false);
       setMessagesLoaded(false);
+      setActiveSkills([]);
       streamRef.current = '';
       return;
     }
@@ -49,6 +51,7 @@ export function useChat(sessionId: string | null) {
     setToolActivities([]);
     setError(null);
     setMessagesLoaded(false);
+    setActiveSkills([]);
     streamRef.current = '';
     api.get<Message[]>(`/sessions/${sessionId}/messages`).then((msgs) => {
       setMessages(msgs);
@@ -85,6 +88,11 @@ export function useChat(sessionId: string | null) {
       // Only update UI for the currently viewed session
       if (msg.sessionId !== sessionId) return;
 
+      if (msg.type === 'chat:skills') {
+        setActiveSkills(msg.skills);
+        return;
+      }
+
       if (msg.type === 'chat:chunk') {
         setQueueTransition(false);
         streamRef.current += msg.content;
@@ -117,6 +125,7 @@ export function useChat(sessionId: string | null) {
           setToolActivities([]);
           setQueuedMessages([]);
           setQueueTransition(false);
+          setActiveSkills([]);
           setLastCost(msg.cost ?? null);
           api.get<Message[]>(`/sessions/${sessionId}/messages`).then(setMessages);
         }
@@ -128,6 +137,7 @@ export function useChat(sessionId: string | null) {
         setToolActivities([]);
         setQueuedMessages([]);
         setQueueTransition(false);
+        setActiveSkills([]);
       }
     });
 
@@ -179,5 +189,5 @@ export function useChat(sessionId: string | null) {
     // after saving the partial response
   }, [sessionId]);
 
-  return { messages, streaming, streamContent, toolActivities, error, lastCost, queuedMessages, queueTransition, messagesLoaded, send, stop };
+  return { messages, streaming, streamContent, toolActivities, error, lastCost, queuedMessages, queueTransition, messagesLoaded, activeSkills, send, stop };
 }

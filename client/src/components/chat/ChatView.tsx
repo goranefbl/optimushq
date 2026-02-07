@@ -16,6 +16,7 @@ interface Props {
   streaming: boolean;
   streamContent: string;
   toolActivities: ToolActivity[];
+  activeSkills: string[];
   error: string | null;
   lastCost: number | null;
   queuedMessages: Message[];
@@ -30,7 +31,7 @@ interface Props {
 }
 
 export default function ChatView({
-  messages, streaming, streamContent, toolActivities, error, lastCost,
+  messages, streaming, streamContent, toolActivities, activeSkills, error, lastCost,
   queuedMessages, queueTransition,
   onSend, onStop, hasSession, defaultModel, defaultThinking, defaultMode, sessionId,
 }: Props) {
@@ -55,7 +56,7 @@ export default function ChatView({
             <MessageBubble key={m.id} message={m} />
           ))}
           {streaming && (
-            <StreamingIndicator content={streamContent} toolActivities={toolActivities} queueTransition={queueTransition} />
+            <StreamingIndicator content={streamContent} toolActivities={toolActivities} activeSkills={activeSkills} queueTransition={queueTransition} />
           )}
           {error && (
             <div className="mb-4 p-3 bg-red-900/50 border border-red-700 rounded-lg text-red-300 text-sm">

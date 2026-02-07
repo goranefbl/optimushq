@@ -241,6 +241,12 @@ export interface WsQueuedMessage {
   sessionId: string;
 }
 
+export interface WsSkillsMessage {
+  type: 'chat:skills';
+  sessionId: string;
+  skills: string[];
+}
+
 export type WsClientMessage = WsSendMessage | WsStopMessage;
 export type WsServerMessage =
   | WsChunkMessage
@@ -249,4 +255,5 @@ export type WsServerMessage =
   | WsDoneMessage
   | WsErrorMessage
   | WsStreamingMessage
-  | WsQueuedMessage;
+  | WsQueuedMessage
+  | WsSkillsMessage;

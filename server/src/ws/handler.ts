@@ -363,6 +363,12 @@ export function spawnForSession(sessionId: string, content: string, images?: str
   const toolInteractions: { tool: string; input: unknown; result?: string }[] = [];
 
   streamingSessions.add(sessionId);
+
+  // Notify client of active skills
+  if (ctx.activeSkills.length > 0) {
+    broadcastToSessionOwner(sessionId, { type: 'chat:skills', sessionId, skills: ctx.activeSkills });
+  }
+
   console.log(`[CHAT] Spawning claude... projectPath=${projectPath}`);
   spawnClaude(
     sessionId,

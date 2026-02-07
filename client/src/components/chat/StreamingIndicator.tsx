@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Globe, Terminal, Search, FileText, Loader } from 'lucide-react';
+import { Globe, Terminal, Search, FileText, Loader, Sparkles } from 'lucide-react';
 
 interface ToolActivity {
   type: 'use' | 'result';
@@ -13,6 +13,7 @@ interface ToolActivity {
 interface Props {
   content: string;
   toolActivities: ToolActivity[];
+  activeSkills?: string[];
   queueTransition?: boolean;
 }
 
@@ -44,13 +45,22 @@ function getToolLabel(activity: ToolActivity): string {
   return `Using ${activity.tool}`;
 }
 
-export default function StreamingIndicator({ content, toolActivities, queueTransition }: Props) {
+export default function StreamingIndicator({ content, toolActivities, activeSkills, queueTransition }: Props) {
   const hasToolActivity = toolActivities.length > 0;
+  const hasSkills = activeSkills && activeSkills.length > 0;
 
   if (!content && !hasToolActivity) {
     return (
       <div className="flex justify-start mb-4">
         <div className="bg-[#161b22] border border-gray-800/50 rounded-lg px-4 py-3">
+          {hasSkills && (
+            <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+              <Sparkles size={12} className="text-amber-400 flex-shrink-0" />
+              {activeSkills.map(s => (
+                <span key={s} className="text-[11px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">{s}</span>
+              ))}
+            </div>
+          )}
           {queueTransition ? (
             <p className="text-sm text-gray-400 animate-pulse">Reading your message...</p>
           ) : (
@@ -67,7 +77,16 @@ export default function StreamingIndicator({ content, toolActivities, queueTrans
 
   return (
     <div className="flex justify-start mb-4">
-      <div className="max-w-[80%] bg-[#161b22] border border-gray-800/50 text-gray-200 rounded-lg px-4 py-3">
+      <div className="max-w-[85%] sm:max-w-[80%] bg-[#161b22] border border-gray-800/50 text-gray-200 rounded-lg px-4 py-3 overflow-hidden">
+        {/* Active skills */}
+        {hasSkills && (
+          <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+            <Sparkles size={12} className="text-amber-400 flex-shrink-0" />
+            {activeSkills.map(s => (
+              <span key={s} className="text-[11px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">{s}</span>
+            ))}
+          </div>
+        )}
         {/* Tool activities */}
         {hasToolActivity && (
           <div className="mb-2 space-y-1">
