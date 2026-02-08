@@ -111,7 +111,7 @@ export function assembleContext(sessionId: string, userMessage: string, modelOve
 
   if (skills.length > 0) {
     const listing = skills.map(s => `- ${s.name}: ${s.description || 'No description'}`).join('\n');
-    systemParts.push(`Available skills (use the use_skill MCP tool to load a skill when relevant):\n${listing}`);
+    systemParts.push(`Available skills - IMPORTANT: Before starting work that matches a skill below, you MUST call the use_skill MCP tool to load the skill's instructions. Do not proceed with skill-related work without first loading the skill.\n${listing}`);
   }
 
   // Enabled APIs
