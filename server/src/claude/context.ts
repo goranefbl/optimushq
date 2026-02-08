@@ -47,6 +47,31 @@ export function assembleContext(sessionId: string, userMessage: string, modelOve
   const systemParts: string[] = [];
   systemParts.push(session.system_prompt);
 
+  // Enabled skills -- CRITICAL: Load before starting work
+  const skills = db.prepare(`
+    SELECT sk.name, sk.description FROM skills sk
+    JOIN session_skills ss ON ss.skill_id = sk.id
+    WHERE ss.session_id = ? AND ss.enabled = 1
+    ORDER BY sk.name ASC
+  `).all(sessionId) as Pick<Skill, 'name' | 'description'>[];
+
+  if (skills.length > 0) {
+    const listing = skills.map(s => `- ${s.name}: ${s.description || 'No description'}`).join('\n');
+    systemParts.push(`## SKILLS - MANDATORY FIRST STEP
+
+You have specialized skills available. BEFORE doing ANY work that matches a skill below, you MUST FIRST call the mcp__project-manager__use_skill tool to load that skill's instructions. This is not optional.
+
+Examples:
+- User asks about SEO, backlinks, rankings -> call use_skill with "seo-audit" FIRST
+- User asks about conversion optimization -> call use_skill with the relevant CRO skill FIRST
+- User asks about content/copywriting -> call use_skill with "copywriting" or "content-strategy" FIRST
+
+DO NOT skip this step. DO NOT proceed with the task until you have loaded the skill.
+
+Available skills:
+${listing}`);
+  }
+
   // Platform awareness
   systemParts.push(`You are an AI agent running inside a multi-project, multi-agent platform. Multiple agents work on different projects simultaneously. Each project has sessions where agents do work. When the user asks about a project's status or progress, use the get_project_status MCP tool to check session activity and recent messages -- do NOT default to checking git history or file structure. The platform tracks all agent work through sessions, messages, and memory entries.`);
 
@@ -99,20 +124,6 @@ export function assembleContext(sessionId: string, userMessage: string, modelOve
 - Write in plain, direct prose — no bullet-point-heavy formatting unless listing specific items
 - Use proper paragraph spacing between ideas
 - Keep responses conversational and natural, not overly structured`);
-
-  // Enabled skills -- only include names + descriptions in the system prompt.
-  // Full prompts are loaded on demand via the use_skill MCP tool.
-  const skills = db.prepare(`
-    SELECT sk.name, sk.description FROM skills sk
-    JOIN session_skills ss ON ss.skill_id = sk.id
-    WHERE ss.session_id = ? AND ss.enabled = 1
-    ORDER BY sk.name ASC
-  `).all(sessionId) as Pick<Skill, 'name' | 'description'>[];
-
-  if (skills.length > 0) {
-    const listing = skills.map(s => `- ${s.name}: ${s.description || 'No description'}`).join('\n');
-    systemParts.push(`Available skills - IMPORTANT: Before starting work that matches a skill below, you MUST call the use_skill MCP tool to load the skill's instructions. Do not proceed with skill-related work without first loading the skill.\n${listing}`);
-  }
 
   // Enabled APIs
   const apis = db.prepare(`
