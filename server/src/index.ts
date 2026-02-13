@@ -103,7 +103,7 @@ process.stdin.on('end', () => {
   const preToolUse = [
     {
       matcher: 'Write|Edit|Read',
-      hooks: [`node ${hookPath}`],
+      hooks: [{ type: 'command', command: `node ${hookPath}` }],
     },
   ];
   hooks.PreToolUse = preToolUse;
