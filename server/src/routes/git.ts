@@ -1,5 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { execSync } from 'child_process';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 import { getDb } from '../db/connection.js';
 
 const router = Router();
@@ -66,7 +68,9 @@ router.get('/status/:projectId', (req: Request, res: Response) => {
       // No upstream configured or no commits yet
     }
 
-    const statusOutput = git('status --porcelain', project.path);
+    // Don't use git() helper here -- its .trim() strips leading spaces from porcelain format
+    // which corrupts the XY status columns (position 0-1 are meaningful)
+    const statusOutput = execSync('git status --porcelain -u', { cwd: project.path, timeout: EXEC_TIMEOUT, encoding: 'utf-8' }).replace(/\n$/, '');
     const files = statusOutput
       ? statusOutput.split('\n').map(line => {
           const indexStatus = line[0];
@@ -108,29 +112,51 @@ router.get('/diff/:projectId', (req: Request, res: Response) => {
 
   try {
     let diff: string;
+    const quoted = JSON.stringify(filePath);
+
     if (staged) {
-      diff = git(`diff --cached -- ${JSON.stringify(filePath)}`, project.path);
-    } else {
-      // For untracked files, show the full content as a diff
-      try {
-        git(`ls-files --error-unmatch -- ${JSON.stringify(filePath)}`, project.path);
-        diff = git(`diff -- ${JSON.stringify(filePath)}`, project.path);
-      } catch {
-        // Untracked file — show full content with + prefix
+      diff = git(`diff --cached -- ${quoted}`, project.path);
+      // For newly staged files, --cached may return empty if it's a new file
+      // Use diff --cached --no-ext-diff to get the full add diff
+      if (!diff) {
         try {
-          const content = git(`show :${filePath}`, project.path);
-          diff = content;
-        } catch {
-          diff = execSync(`cat ${JSON.stringify(filePath)}`, {
-            cwd: project.path,
-            timeout: EXEC_TIMEOUT,
-            encoding: 'utf-8',
-          });
-          diff = diff.split('\n').map(l => `+${l}`).join('\n');
+          diff = git(`diff --cached --no-ext-diff -- ${quoted}`, project.path);
+        } catch { /* ignore */ }
+      }
+      // Still empty? Show staged file content directly
+      if (!diff) {
+        try {
+          const content = git(`show :${quoted}`, project.path);
+          const lines = content.split('\n');
+          diff = `--- /dev/null\n+++ b/${filePath}\n@@ -0,0 +1,${lines.length} @@\n` +
+            lines.map(l => `+${l}`).join('\n');
+        } catch { /* ignore */ }
+      }
+    } else {
+      // Check if the file is tracked
+      let tracked = false;
+      try {
+        git(`ls-files --error-unmatch -- ${quoted}`, project.path);
+        tracked = true;
+      } catch { /* untracked */ }
+
+      if (tracked) {
+        diff = git(`diff -- ${quoted}`, project.path);
+      } else {
+        // Untracked file — read content and format as new file diff
+        const fullPath = resolve(project.path, filePath);
+        // Safety: ensure the resolved path is within the project
+        if (!fullPath.startsWith(resolve(project.path))) {
+          return res.status(400).json({ error: 'Invalid file path' });
         }
+        const content = readFileSync(fullPath, 'utf-8');
+        const lines = content.split('\n');
+        diff = `--- /dev/null\n+++ b/${filePath}\n@@ -0,0 +1,${lines.length} @@\n` +
+          lines.map(l => `+${l}`).join('\n');
       }
     }
-    res.json({ path: filePath, diff });
+
+    res.json({ path: filePath, diff: diff || '' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

@@ -57,9 +57,11 @@ export default function SourceControl({ projectId, project }: Props) {
   const pushBlocked = pushDisabled || isOnProtectedBranch;
 
   const handleViewDiff = useCallback(async (file: GitFileStatus) => {
+    setDiffPath(file.path);
+    setDiffContent(null);
     const result = await getDiff(file.path, file.staged);
     if (result) {
-      setDiffContent(result.diff);
+      setDiffContent(result.diff || '(No changes)');
       setDiffPath(result.path);
     }
   }, [getDiff]);
@@ -300,34 +302,40 @@ export default function SourceControl({ projectId, project }: Props) {
 
       {/* Right panel: Diff viewer */}
       <div className="flex-1 flex flex-col min-w-0 bg-[#0d1117]">
-        {diffContent !== null && diffPath ? (
+        {diffPath ? (
           <>
             <div className="h-8 flex items-center px-3 text-xs text-gray-400 border-b border-gray-800/50 font-mono">
               {diffPath}
             </div>
-            <div className="flex-1 overflow-auto p-3 font-mono text-xs leading-5">
-              {diffContent.split('\n').map((line, i) => {
-                let color = 'text-gray-400';
-                let bg = '';
-                if (line.startsWith('+')) {
-                  color = 'text-green-400';
-                  bg = 'bg-green-900/20';
-                } else if (line.startsWith('-')) {
-                  color = 'text-red-400';
-                  bg = 'bg-red-900/20';
-                } else if (line.startsWith('@@')) {
-                  color = 'text-blue-400';
-                  bg = 'bg-blue-900/10';
-                } else if (line.startsWith('diff') || line.startsWith('index') || line.startsWith('---') || line.startsWith('+++')) {
-                  color = 'text-gray-500';
-                }
-                return (
-                  <div key={i} className={`${color} ${bg} px-1 whitespace-pre`}>
-                    {line}
-                  </div>
-                );
-              })}
-            </div>
+            {diffContent === null ? (
+              <div className="flex items-center justify-center h-full text-gray-600 text-sm">
+                Loading diff...
+              </div>
+            ) : (
+              <div className="flex-1 overflow-auto p-3 font-mono text-xs leading-5">
+                {diffContent.split('\n').map((line, i) => {
+                  let color = 'text-gray-400';
+                  let bg = '';
+                  if (line.startsWith('+')) {
+                    color = 'text-green-400';
+                    bg = 'bg-green-900/20';
+                  } else if (line.startsWith('-')) {
+                    color = 'text-red-400';
+                    bg = 'bg-red-900/20';
+                  } else if (line.startsWith('@@')) {
+                    color = 'text-blue-400';
+                    bg = 'bg-blue-900/10';
+                  } else if (line.startsWith('diff') || line.startsWith('index') || line.startsWith('---') || line.startsWith('+++')) {
+                    color = 'text-gray-500';
+                  }
+                  return (
+                    <div key={i} className={`${color} ${bg} px-1 whitespace-pre`}>
+                      {line}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </>
         ) : (
           <div className="flex items-center justify-center h-full text-gray-600 text-sm">
