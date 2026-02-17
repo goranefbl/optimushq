@@ -182,13 +182,12 @@ export function spawnClaude(
       }
     }
 
-    // If this session was killed by the user and we have accumulated text, emit a synthetic done
+    // If this session was killed by the user, emit a synthetic done so the handler
+    // can clean up streamingSessions and process any queued messages
     if (killedSessions.has(sessionId)) {
       killedSessions.delete(sessionId);
-      if (fullText) {
-        console.log(`[SPAWN] Emitting synthetic done for killed session ${sessionId}, fullText.length=${fullText.length}`);
-        onEvent({ type: 'done', content: fullText, interrupted: true });
-      }
+      console.log(`[SPAWN] Emitting synthetic done for killed session ${sessionId}, fullText.length=${fullText.length}`);
+      onEvent({ type: 'done', content: fullText, interrupted: true });
       return;
     }
 
