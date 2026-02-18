@@ -86,6 +86,8 @@ Two built-in MCP servers:
 - `delegate_task` / `send_message` -- Cross-session agent delegation
 - `add_memory_entry` / `search_memory` / `list_memory_entries` -- Structured memory management
 - `get_project_status` -- Check session activity and recent messages
+- `scrape_url` -- Fetch a URL and extract clean content (title, text, metadata)
+- `crawl_links` -- Extract and filter links from a page for article/URL discovery
 
 **Internal vs User MCP servers**: System MCP servers (like Project Manager) are hidden from the UI to keep the interface clean. Users can add custom MCP servers with command, args, and environment variables.
 

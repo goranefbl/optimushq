@@ -269,7 +269,226 @@ const TOOLS = [
       required: ['name'],
     },
   },
+  {
+    name: 'scrape_url',
+    description: 'Fetch a URL and return clean extracted content (title, text, metadata). Strips navigation, ads, scripts, and other boilerplate. Useful for reading articles, documentation, and web pages.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        url: { type: 'string', description: 'URL to fetch and extract content from' },
+        selector: { type: 'string', description: 'CSS selector to focus extraction on (e.g. "article", ".post-content"). If omitted, auto-detects main content area.' },
+        format: { type: 'string', enum: ['text', 'markdown'], description: 'Output format: "text" (plain text) or "markdown" (preserves headers, links, lists). Default: text' },
+      },
+      required: ['url'],
+    },
+  },
+  {
+    name: 'crawl_links',
+    description: 'Fetch a page and extract all links, optionally filtered by a regex pattern. Useful for discovering article URLs from index/listing pages.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        url: { type: 'string', description: 'URL to fetch and extract links from' },
+        pattern: { type: 'string', description: 'Regex pattern to filter link URLs (e.g. "/article/", "/vijesti/"). Only links matching this pattern are returned.' },
+        limit: { type: 'number', description: 'Maximum number of links to return (default: 50)' },
+        selector: { type: 'string', description: 'CSS selector to scope link extraction (e.g. ".article-list a", "main a"). If omitted, extracts from entire page.' },
+      },
+      required: ['url'],
+    },
+  },
 ];
+
+// --- Scraping helpers ---
+
+const SCRAPE_USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+const SCRAPE_TIMEOUT = 15_000;
+const MAX_CONTENT_SIZE = 500 * 1024; // 500KB
+const MAX_OUTPUT_CHARS = 50_000;
+
+const REMOVE_SELECTORS = [
+  'script', 'style', 'nav', 'footer', 'header', 'aside', 'noscript', 'iframe',
+  '.ad', '.ads', '.advert', '.advertisement', '.sidebar', '.cookie', '.popup',
+  '.modal', '.overlay', '.banner', '[role="banner"]', '[role="navigation"]',
+  '[role="complementary"]', '.social-share', '.comments', '.related-posts',
+];
+
+const CONTENT_SELECTORS = [
+  'article', '[role="main"]', 'main', '.post-content', '.article-body',
+  '.entry-content', '.article-content', '.story-body', '.content-body',
+  '#content', '.content',
+];
+
+async function fetchHtml(url: string): Promise<string> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), SCRAPE_TIMEOUT);
+  // Temporarily disable TLS verification for scraping (many sites have cert issues)
+  const prevTls = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': SCRAPE_USER_AGENT, 'Accept': 'text/html,application/xhtml+xml' },
+      signal: controller.signal,
+      redirect: 'follow',
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('html') && !contentType.includes('text')) {
+      throw new Error(`Not an HTML page (content-type: ${contentType})`);
+    }
+    const text = await res.text();
+    if (text.length > MAX_CONTENT_SIZE) return text.substring(0, MAX_CONTENT_SIZE);
+    return text;
+  } finally {
+    clearTimeout(timer);
+    if (prevTls === undefined) delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+    else process.env.NODE_TLS_REJECT_UNAUTHORIZED = prevTls;
+  }
+}
+
+async function loadCheerio() {
+  const cheerio = await import('cheerio');
+  return cheerio;
+}
+
+async function scrapeContent(url: string, selector?: string, format?: string) {
+  const html = await fetchHtml(url);
+  const cheerio = await loadCheerio();
+  const $ = cheerio.load(html);
+
+  // Extract metadata before removing elements
+  const title = $('meta[property="og:title"]').attr('content')
+    || $('title').text().trim()
+    || $('h1').first().text().trim()
+    || '';
+
+  const date = $('meta[property="article:published_time"]').attr('content')
+    || $('meta[name="date"]').attr('content')
+    || $('time[datetime]').first().attr('datetime')
+    || $('[class*="date"]').first().text().trim()
+    || null;
+
+  const author = $('meta[name="author"]').attr('content')
+    || $('meta[property="article:author"]').attr('content')
+    || $('[rel="author"]').first().text().trim()
+    || $('[class*="author"]').first().text().trim()
+    || null;
+
+  // Remove boilerplate elements
+  $(REMOVE_SELECTORS.join(', ')).remove();
+
+  // Find content area
+  let $content: ReturnType<typeof $>;
+  if (selector) {
+    $content = $(selector);
+    if ($content.length === 0) $content = $('body');
+  } else {
+    $content = $('body'); // default fallback
+    for (const sel of CONTENT_SELECTORS) {
+      const $found = $(sel);
+      if ($found.length > 0 && $found.text().trim().length > 100) {
+        $content = $found;
+        break;
+      }
+    }
+  }
+
+  // Extract links from content
+  const links: { url: string; text: string }[] = [];
+  $content.find('a[href]').each((_i, el) => {
+    const href = $(el).attr('href');
+    const text = $(el).text().trim();
+    if (href && text && !href.startsWith('#') && !href.startsWith('javascript:')) {
+      try {
+        const absUrl = new URL(href, url).href;
+        links.push({ url: absUrl, text: text.substring(0, 100) });
+      } catch { /* skip invalid URLs */ }
+    }
+  });
+
+  let content: string;
+  if (format === 'markdown') {
+    content = htmlToMarkdown($, $content);
+  } else {
+    content = $content.text().replace(/\s+/g, ' ').trim();
+    // Restore paragraph breaks
+    content = content.replace(/\.\s+/g, '.\n');
+  }
+
+  if (content.length > MAX_OUTPUT_CHARS) {
+    content = content.substring(0, MAX_OUTPUT_CHARS) + '\n\n[Content truncated]';
+  }
+
+  const excerpt = content.substring(0, 300).replace(/\n/g, ' ').trim();
+
+  return { title, content, url, excerpt, date, author, links: links.slice(0, 20) };
+}
+
+function htmlToMarkdown($: any, $el: any): string {
+  const lines: string[] = [];
+
+  $el.find('h1, h2, h3, h4, h5, h6, p, li, blockquote, pre, br').each((_i: number, el: any) => {
+    const tag = el.tagName?.toLowerCase();
+    const text = $(el).text().trim();
+    if (!text && tag !== 'br') return;
+
+    switch (tag) {
+      case 'h1': lines.push(`\n# ${text}\n`); break;
+      case 'h2': lines.push(`\n## ${text}\n`); break;
+      case 'h3': lines.push(`\n### ${text}\n`); break;
+      case 'h4': lines.push(`\n#### ${text}\n`); break;
+      case 'h5': lines.push(`\n##### ${text}\n`); break;
+      case 'h6': lines.push(`\n###### ${text}\n`); break;
+      case 'p': lines.push(`\n${text}\n`); break;
+      case 'li': lines.push(`- ${text}`); break;
+      case 'blockquote': lines.push(`\n> ${text}\n`); break;
+      case 'pre': lines.push(`\n\`\`\`\n${text}\n\`\`\`\n`); break;
+      case 'br': lines.push(''); break;
+    }
+  });
+
+  // Fallback: if structured extraction is empty, get plain text
+  if (lines.filter(l => l.trim()).length === 0) {
+    return $el.text().replace(/\s+/g, ' ').trim();
+  }
+
+  return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+async function crawlLinks(url: string, pattern?: string, limit?: number, selector?: string) {
+  const html = await fetchHtml(url);
+  const cheerio = await loadCheerio();
+  const $ = cheerio.load(html);
+
+  const $scope = selector ? $(selector) : $('body');
+  const maxLinks = limit || 50;
+  const regex = pattern ? new RegExp(pattern) : null;
+
+  const seen = new Set<string>();
+  const results: { url: string; title: string }[] = [];
+
+  $scope.find('a[href]').each((_i, el) => {
+    if (results.length >= maxLinks) return false;
+    const href = $(el).attr('href');
+    const text = $(el).text().trim();
+    if (!href || href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:')) return;
+
+    let absUrl: string;
+    try {
+      absUrl = new URL(href, url).href;
+    } catch { return; }
+
+    // Remove hash fragments for dedup
+    const cleanUrl = absUrl.split('#')[0];
+    if (seen.has(cleanUrl)) return;
+
+    if (regex && !regex.test(absUrl)) return;
+
+    seen.add(cleanUrl);
+    results.push({ url: absUrl, title: text.substring(0, 200) || cleanUrl });
+  });
+
+  return results;
+}
 
 function handleInitialize(id: number | string) {
   return {
@@ -291,7 +510,7 @@ function handleToolsList(id: number | string) {
   };
 }
 
-function handleToolCall(id: number | string, params: { name: string; arguments?: Record<string, unknown> }) {
+async function handleToolCall(id: number | string, params: { name: string; arguments?: Record<string, unknown> }) {
   const { name, arguments: args = {} } = params;
 
   try {
@@ -846,6 +1065,29 @@ function handleToolCall(id: number | string, params: { name: string; arguments?:
         return success(id, `# Skill: ${skill.name}\n\n${skill.prompt}`);
       }
 
+      case 'scrape_url': {
+        const url = args.url as string;
+        if (!url) throw new Error('url is required');
+        const selector = args.selector as string | undefined;
+        const format = (args.format as string) || 'text';
+
+        const result = await scrapeContent(url, selector, format);
+        const output = JSON.stringify(result, null, 2);
+        return success(id, output);
+      }
+
+      case 'crawl_links': {
+        const url = args.url as string;
+        if (!url) throw new Error('url is required');
+        const pattern = args.pattern as string | undefined;
+        const limit = args.limit as number | undefined;
+        const selector = args.selector as string | undefined;
+
+        const links = await crawlLinks(url, pattern, limit, selector);
+        const output = JSON.stringify({ url, count: links.length, links }, null, 2);
+        return success(id, output);
+      }
+
       default:
         return {
           jsonrpc: '2.0',
@@ -895,7 +1137,7 @@ rl.on('line', (line) => {
         send(handleToolsList(msg.id));
         break;
       case 'tools/call':
-        send(handleToolCall(msg.id, msg.params));
+        handleToolCall(msg.id, msg.params).then(result => send(result));
         break;
       default:
         if (msg.id !== undefined) {
