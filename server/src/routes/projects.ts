@@ -8,6 +8,9 @@ import { getDb } from '../db/connection.js';
 const router = Router();
 const PROJECTS_ROOT = '/home/claude/projects';
 
+// Ports reserved by system services (claude-chat, knjigoo, vip-nightlife-crm, etc.)
+const RESERVED_PORTS = new Set([3118, 3119, 3120, 3121]);
+
 function slugify(name: string): string {
   return name
     .toLowerCase()
@@ -63,7 +66,7 @@ router.post('/', (req: Request, res: Response) => {
   const usedSet = new Set(usedPorts.map(r => r.dev_port));
   let devPort: number | null = null;
   for (let p = 3100; p <= 3999; p++) {
-    if (!usedSet.has(p)) { devPort = p; break; }
+    if (!usedSet.has(p) && !RESERVED_PORTS.has(p)) { devPort = p; break; }
   }
 
   getDb().prepare('INSERT INTO projects (id, name, description, path, git_push_disabled, git_origin_url, dev_port, user_id) VALUES (?, ?, ?, ?, 1, ?, ?, ?)').run(id, name, description, projectPath, gitOriginUrl, devPort, userId);
