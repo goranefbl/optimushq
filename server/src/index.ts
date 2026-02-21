@@ -46,9 +46,33 @@ function setupPathValidationHook() {
 // Used by OptimusHQ to enforce project isolation
 
 const path = require('path');
+const fs = require('fs');
 
 const projectPath = process.env.PROJECT_PATH;
 if (!projectPath) process.exit(0);
+
+const resolvedProject = path.resolve(projectPath);
+
+// Build list of sibling project directories to block
+const projectsDir = path.dirname(resolvedProject);
+let siblingPaths = [];
+try {
+  siblingPaths = fs.readdirSync(projectsDir)
+    .map(name => path.join(projectsDir, name))
+    .filter(p => p !== resolvedProject && fs.statSync(p).isDirectory());
+} catch (e) {}
+
+function isAllowedPath(filePath) {
+  if (!filePath) return true;
+  const resolved = path.resolve(filePath);
+  if (resolved.startsWith(resolvedProject + path.sep) || resolved === resolvedProject) return true;
+  if (resolved.startsWith('/tmp/') || resolved === '/tmp') return true;
+  // Block access to sibling project directories
+  for (const sib of siblingPaths) {
+    if (resolved.startsWith(sib + path.sep) || resolved === sib) return false;
+  }
+  return true;
+}
 
 let input = '';
 process.stdin.setEncoding('utf8');
@@ -59,27 +83,40 @@ process.stdin.on('end', () => {
     const tool = data.tool_name || data.tool || '';
     const toolInput = data.tool_input || {};
 
-    let filePath = '';
-    if (['Write', 'Edit', 'Read'].includes(tool)) {
-      filePath = toolInput.file_path || '';
-    } else {
+    // File tools: validate file_path
+    if (['Write', 'Edit', 'Read', 'NotebookEdit'].includes(tool)) {
+      const filePath = toolInput.file_path || toolInput.notebook_path || '';
+      if (filePath && !isAllowedPath(filePath)) {
+        process.stderr.write('Security: Cannot access "' + filePath + '" - outside project directory "' + projectPath + '"\\n');
+        process.exit(2);
+      }
       process.exit(0);
     }
 
-    if (!filePath) process.exit(0);
-
-    const resolvedFile = path.resolve(filePath);
-    const resolvedProject = path.resolve(projectPath);
-
-    if (resolvedFile.startsWith(resolvedProject + path.sep) || resolvedFile === resolvedProject) {
+    // Glob/Grep: validate path parameter
+    if (['Glob', 'Grep'].includes(tool)) {
+      const searchPath = toolInput.path || '';
+      if (searchPath && !isAllowedPath(searchPath)) {
+        process.stderr.write('Security: Cannot search in "' + searchPath + '" - outside project directory "' + projectPath + '"\\n');
+        process.exit(2);
+      }
       process.exit(0);
     }
-    if (resolvedFile.startsWith('/tmp/') || resolvedFile.startsWith('/tmp')) {
+
+    // Bash: check command for references to sibling project directories
+    if (tool === 'Bash') {
+      const cmd = toolInput.command || '';
+      for (const sib of siblingPaths) {
+        if (cmd.includes(sib)) {
+          const sibName = path.basename(sib);
+          process.stderr.write('Security: Bash command references sibling project "' + sibName + '" - blocked to prevent cross-project contamination\\n');
+          process.exit(2);
+        }
+      }
       process.exit(0);
     }
 
-    process.stderr.write('Security: Cannot access "' + filePath + '" - outside project directory "' + projectPath + '"\\n');
-    process.exit(2);
+    process.exit(0);
   } catch (e) {
     process.exit(0);
   }
@@ -102,7 +139,7 @@ process.stdin.on('end', () => {
   const hooks = (settings.hooks || {}) as Record<string, unknown>;
   const preToolUse = [
     {
-      matcher: 'Write|Edit|Read',
+      matcher: 'Write|Edit|Read|NotebookEdit|Bash|Glob|Grep',
       hooks: [{ type: 'command', command: `node ${hookPath}` }],
     },
   ];

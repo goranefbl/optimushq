@@ -87,8 +87,7 @@ ${listing}`);
     envLines.unshift(
       `- You are working on the "${session.project_name}" project`,
       `- Project directory: ${session.project_path}`,
-      `- All code changes should be made inside ${session.project_path}`,
-      `- When creating or modifying files, always work within the project directory`,
+      `- CRITICAL: All code changes MUST be made ONLY inside ${session.project_path}. NEVER read, write, modify, or reference files in other project directories. This is a hard security constraint.`,
       `- CRITICAL: Port 3001 is reserved by the platform. NEVER kill processes on port 3001 or any other port you did not start. If a port is in use, pick another port in the 3100-3999 range instead of killing existing processes.`,
     );
     if (session.dev_port) {
