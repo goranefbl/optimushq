@@ -20,6 +20,7 @@ interface Props {
   onCreateProject?: (name: string) => void;
   onCreateSession?: () => void;
   onDeleteSession?: (id: string) => void;
+  onRenameSession?: (id: string, title: string) => void;
 }
 
 function SectionHeader({ label, onAction, actionIcon }: { label: string; onAction?: () => void; actionIcon?: React.ReactNode }) {
@@ -62,9 +63,12 @@ export default function Sidebar({
   projects: externalProjects, sessions = [], selectedProjectId, selectedSessionId,
   onSelectProject, onSelectSession, onCreateProject, onCreateSession,
   onDeleteSession,
+  onRenameSession,
 }: Props) {
   const [newProjectName, setNewProjectName] = useState('');
   const [showForm, setShowForm] = useState(false);
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState('');
   const [internalProjects, setInternalProjects] = useState<Project[]>([]);
   const location = useLocation();
   const navigate = useNavigate();
@@ -234,15 +238,39 @@ export default function Sidebar({
                 {sessions.filter(s => s.project_id === p.id).map((s) => (
                   <div
                     key={s.id}
-                    onClick={() => { onSelectSession?.(s.id); if (isMobile) closeSidebar(); }}
+                    onClick={() => { if (editingSessionId !== s.id) { onSelectSession?.(s.id); if (isMobile) closeSidebar(); } }}
                     className={`flex items-center justify-between px-3 py-1.5 cursor-pointer text-xs group transition-colors ${
                       selectedSessionId === s.id ? 'text-accent-400' : 'text-gray-500 hover:text-gray-300'
                     }`}
                   >
-                    <span className="truncate">{s.title}</span>
+                    {editingSessionId === s.id ? (
+                      <input
+                        autoFocus
+                        value={editingTitle}
+                        onChange={(e) => setEditingTitle(e.target.value)}
+                        onBlur={() => {
+                          const trimmed = editingTitle.trim();
+                          if (trimmed && trimmed !== s.title) onRenameSession?.(s.id, trimmed);
+                          setEditingSessionId(null);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') { e.currentTarget.blur(); }
+                          if (e.key === 'Escape') { setEditingSessionId(null); }
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-full bg-gray-800/60 border border-gray-700/50 rounded px-1.5 py-0.5 text-xs text-white focus:outline-none focus:border-accent-500/50"
+                      />
+                    ) : (
+                      <span
+                        className="truncate"
+                        onDoubleClick={(e) => { e.stopPropagation(); setEditingSessionId(s.id); setEditingTitle(s.title); }}
+                      >
+                        {s.title}
+                      </span>
+                    )}
                     <button
                       onClick={(e) => { e.stopPropagation(); onDeleteSession?.(s.id); }}
-                      className="opacity-0 group-hover:opacity-100 text-gray-600 hover:text-red-400 transition-opacity"
+                      className="opacity-0 group-hover:opacity-100 text-gray-600 hover:text-red-400 transition-opacity flex-shrink-0 ml-1"
                     >
                       <Trash2 size={11} />
                     </button>

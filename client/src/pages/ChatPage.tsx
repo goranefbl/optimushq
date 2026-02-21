@@ -70,7 +70,7 @@ export default function ChatPage() {
   const { projects, create: createProject, remove: removeProject } = useProjects();
   // When no project selected, show sessions for the General project
   const activeProjectId = selectedProjectId || generalProjectId || '';
-  const { sessions, loading: sessionsLoading, create: createSession, remove: removeSession, refresh: refreshSessions } = useSessions(activeProjectId);
+  const { sessions, loading: sessionsLoading, create: createSession, update: updateSession, remove: removeSession, refresh: refreshSessions } = useSessions(activeProjectId);
   const { agents } = useAgents();
   const { messages, streaming, streamContent, toolActivities, error, lastCost, queuedMessages, queueTransition, messagesLoaded, activeSkills, send, stop } = useChat(selectedSessionId);
   const { memory, refresh: refreshMemory } = useMemory(selectedSessionId);
@@ -151,6 +151,10 @@ export default function ChatPage() {
     if (selectedSessionId === id) setSelectedSessionId(null);
   }, [removeSession, selectedSessionId]);
 
+  const handleRenameSession = useCallback(async (id: string, title: string) => {
+    await updateSession(id, { title });
+  }, [updateSession]);
+
   React.useEffect(() => {
     if (selectedSessionId && !streaming) {
       refreshMemory();
@@ -200,6 +204,7 @@ export default function ChatPage() {
           onCreateProject={handleCreateProject}
           onCreateSession={handleCreateSession}
           onDeleteSession={handleDeleteSession}
+          onRenameSession={handleRenameSession}
         />
       }
       header={
