@@ -1,0 +1,12 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|Read",
+        "hooks": [
+          {"type": "command", "command": "node /home/claude/.claude/hooks/validate-path.js"}
+        ]
+      }
+    ]
+  }
+}
