@@ -36,8 +36,8 @@ export default function Header({
   const { setSidebarOpen } = useMobileSidebar();
 
   return (
-    <header className="h-12 bg-[#161b22] border-b border-gray-800/50 flex items-center justify-between px-4">
-      <div className="flex items-center gap-3">
+    <header className="h-12 bg-[#161b22] border-b border-gray-800/50 flex items-center justify-between px-4 overflow-hidden">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0 overflow-x-auto">
         {/* Hamburger menu - mobile only */}
         <button
           onClick={() => setSidebarOpen(true)}
@@ -126,7 +126,7 @@ export default function Header({
       </div>
 
       {sessionId && (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <button onClick={onToggleSkills} className="text-gray-500 hover:text-gray-300 p-1 transition-colors" title="Skills">
             <Settings size={16} />
           </button>

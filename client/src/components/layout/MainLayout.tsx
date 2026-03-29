@@ -17,7 +17,7 @@ export default function MainLayout({ sidebar, header, children, rightPanel }: Pr
   const [mobileRightPanelOpen, setMobileRightPanelOpen] = useState(false);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#0d1117]">
+    <div className="flex h-dvh overflow-hidden bg-[#0d1117]">
       {/* Desktop sidebar */}
       <div className="hidden md:flex">
         {sidebar}

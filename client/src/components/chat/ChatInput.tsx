@@ -280,7 +280,7 @@ export default function ChatInput({ onSend, onStop, streaming, disabled, default
                   <ChevronDown size={12} />
                 </button>
                 {showModelMenu && (
-                  <div className="absolute bottom-full left-0 mb-1 bg-[#1c2129] border border-gray-700/60 rounded-lg shadow-xl z-50 min-w-[240px] py-1">
+                  <div className="absolute bottom-full left-0 mb-1 bg-[#1c2129] border border-gray-700/60 rounded-lg shadow-xl z-50 min-w-[200px] sm:min-w-[240px] py-1">
                     {MODELS.map((m) => (
                       <button
                         key={m.value}
@@ -347,7 +347,7 @@ export default function ChatInput({ onSend, onStop, streaming, disabled, default
                   <ChevronDown size={12} className="hidden sm:block" />
                 </button>
                 {showModeMenu && (
-                  <div className="absolute bottom-full left-0 mb-1 bg-[#1c2129] border border-gray-700/60 rounded-lg shadow-xl z-50 min-w-[240px] py-1">
+                  <div className="absolute bottom-full left-0 mb-1 bg-[#1c2129] border border-gray-700/60 rounded-lg shadow-xl z-50 min-w-[200px] sm:min-w-[240px] py-1">
                     {MODES.map((m) => {
                       const Icon = m.icon;
                       return (
