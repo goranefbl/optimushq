@@ -14,6 +14,11 @@ interface ContextResult {
   maxTurns?: number;
 }
 
+// Built-in Claude CLI tools that must ALWAYS be blocked.
+// Task/TaskOutput spawn child processes that die when the parent `claude --print`
+// process exits, so sub-agents never finish their work.
+const ALWAYS_DISALLOWED_TOOLS = ['Task', 'TaskOutput'];
+
 // Write/destructive tools blocked in Explore mode
 const EXPLORE_DISALLOWED_TOOLS = [
   'Bash', 'Write', 'Edit', 'NotebookEdit', 'Task', 'TaskOutput',
@@ -257,6 +262,18 @@ ${listing}`);
 This is a hard constraint. Do not combine your confirmation question with tool execution in the same turn.`);
   }
   // 'execute' mode: no restrictions (current default behavior)
+
+  // Block built-in Task/TaskOutput in ALL modes (they spawn child processes
+  // that die when the parent --print process exits)
+  if (disallowedTools) {
+    for (const t of ALWAYS_DISALLOWED_TOOLS) {
+      if (!disallowedTools.includes(t)) disallowedTools.push(t);
+    }
+  } else {
+    disallowedTools = [...ALWAYS_DISALLOWED_TOOLS];
+  }
+
+  systemParts.push(`IMPORTANT: Do NOT use the built-in Task or TaskOutput tools. They spawn child processes that are killed when your process exits, so sub-agents will never complete their work. Instead, use the mcp__project-manager__delegate_task tool to delegate work to other agents -- it creates independent sessions that persist.`);
 
   // Determine model: per-message override > settings default > agent model
   const defaultModelSetting = sessionUserId
