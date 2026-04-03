@@ -83,34 +83,35 @@ process.stdin.on('end', () => {
     const tool = data.tool_name || data.tool || '';
     const toolInput = data.tool_input || {};
 
-    // File tools: validate file_path
-    if (['Write', 'Edit', 'Read', 'NotebookEdit'].includes(tool)) {
+    // Write tools: block writes to sibling projects
+    if (['Write', 'Edit', 'NotebookEdit'].includes(tool)) {
       const filePath = toolInput.file_path || toolInput.notebook_path || '';
       if (filePath && !isAllowedPath(filePath)) {
-        process.stderr.write('Security: Cannot access "' + filePath + '" - outside project directory "' + projectPath + '"\\n');
+        process.stderr.write('Security: Cannot write to "' + filePath + '" - outside project directory "' + projectPath + '". You can read other projects but not modify them.\\n');
         process.exit(2);
       }
       process.exit(0);
     }
 
-    // Glob/Grep: validate path parameter
-    if (['Glob', 'Grep'].includes(tool)) {
-      const searchPath = toolInput.path || '';
-      if (searchPath && !isAllowedPath(searchPath)) {
-        process.stderr.write('Security: Cannot search in "' + searchPath + '" - outside project directory "' + projectPath + '"\\n');
-        process.exit(2);
-      }
+    // Read tools: allow reading sibling projects (no restriction)
+    if (['Read', 'Glob', 'Grep'].includes(tool)) {
       process.exit(0);
     }
 
-    // Bash: check command for references to sibling project directories
+    // Bash: block destructive commands targeting sibling projects
     if (tool === 'Bash') {
       const cmd = toolInput.command || '';
+      const destructivePatterns = ['rm ', 'rm\\t', 'rmdir ', 'mv ', 'cp ', '> ', '>> ', 'chmod ', 'chown ', 'truncate ', 'dd '];
       for (const sib of siblingPaths) {
         if (cmd.includes(sib)) {
-          const sibName = path.basename(sib);
-          process.stderr.write('Security: Bash command references sibling project "' + sibName + '" - blocked to prevent cross-project contamination\\n');
-          process.exit(2);
+          // Check if any destructive command pattern precedes the sibling path
+          for (const pat of destructivePatterns) {
+            if (cmd.includes(pat)) {
+              const sibName = path.basename(sib);
+              process.stderr.write('Security: Bash command may modify sibling project "' + sibName + '" - write operations on other projects are blocked. Reading is allowed.\\n');
+              process.exit(2);
+            }
+          }
         }
       }
       process.exit(0);
